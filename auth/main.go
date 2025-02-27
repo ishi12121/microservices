@@ -27,7 +27,6 @@ type RefreshTokenRequest struct {
 	Username     string `json:"username"`
 	RefreshToken string `json:"refreshToken"`
 }
-
 type AuthResponse struct {
 	Message      string    `json:"message"`
 	AccessToken  string    `json:"accessToken"`
