@@ -91,59 +91,113 @@ func (d *Database) SaveAuthTokens(ctx context.Context, userID int, tokens AuthTo
 }
 
 func (d *Database) GetAuthTokensByAccessToken(ctx context.Context, accessToken string) (*AuthToken, *User, error) {
-	query := `
-		SELECT t.id, t.user_id, t.access_token, t.refresh_token, t.csrf_token, t.expires_at, t.created_at,
-			   u.id as "user.id", u.username as "user.username", u.hashed_password as "user.hashed_password", 
-			   u.created_at as "user.created_at", u.updated_at as "user.updated_at"
-		FROM auth_tokens t
-		JOIN users u ON t.user_id = u.id
-		WHERE t.access_token = $1
-	`
-	
-	rows, err := d.DB.QueryxContext(ctx, query, accessToken)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to query auth tokens: %w", err)
-	}
-	defer rows.Close()
-
-	if !rows.Next() {
-		return nil, nil, nil // Not found
-	}
-
-	var token AuthToken
-	var user User
-	
-	// Use a map to handle the joined results
-	result := map[string]interface{}{}
-	if err := rows.MapScan(result); err != nil {
-		return nil, nil, fmt.Errorf("failed to scan token: %w", err)
-	}
-	
-	// Map results to structs
-	token.ID = result["id"].(int)
-	token.UserID = result["user_id"].(int)
-	token.AccessToken = result["access_token"].(string)
-	token.RefreshToken = result["refresh_token"].(string)
-	token.CSRFToken = result["csrf_token"].(string)
-	token.ExpiresAt = result["expires_at"].(time.Time)
-	token.CreatedAt = result["created_at"].(time.Time)
-	
-	user.ID = result["user.id"].(int)
-	user.Username = result["user.username"].(string)
-	user.HashedPassword = result["user.hashed_password"].(string)
-	user.CreatedAt = result["user.created_at"].(time.Time)
-	user.UpdatedAt = result["user.updated_at"].(time.Time)
-	
-	return &token, &user, nil
+    query := `
+        SELECT 
+            t.id, t.user_id, t.access_token, t.refresh_token, t.csrf_token, t.expires_at, t.created_at,
+            u.id as user_id, u.username, u.hashed_password, u.created_at as user_created_at, u.updated_at as user_updated_at
+        FROM auth_tokens t
+        JOIN users u ON t.user_id = u.id
+        WHERE t.access_token = $1
+    `
+    
+    type JoinResult struct {
+        ID           int       `db:"id"`
+        UserID       int       `db:"user_id"`
+        AccessToken  string    `db:"access_token"`
+        RefreshToken string    `db:"refresh_token"`
+        CSRFToken    string    `db:"csrf_token"`
+        ExpiresAt    time.Time `db:"expires_at"`
+        CreatedAt    time.Time `db:"created_at"`
+        
+        Username       string    `db:"username"`
+        HashedPassword string    `db:"hashed_password"`
+        UserCreatedAt  time.Time `db:"user_created_at"`
+        UserUpdatedAt  time.Time `db:"user_updated_at"`
+    }
+    
+    var result JoinResult
+    err := d.DB.GetContext(ctx, &result, query, accessToken)
+    if err != nil {
+        if errors.Is(err, sql.ErrNoRows) {
+            return nil, nil, nil // Not found
+        }
+        return nil, nil, fmt.Errorf("failed to query auth tokens: %w", err)
+    }
+    
+    token := &AuthToken{
+        ID:           result.ID,
+        UserID:       result.UserID,
+        AccessToken:  result.AccessToken,
+        RefreshToken: result.RefreshToken,
+        CSRFToken:    result.CSRFToken,
+        ExpiresAt:    result.ExpiresAt,
+        CreatedAt:    result.CreatedAt,
+    }
+    
+    user := &User{
+        ID:             result.UserID,
+        Username:       result.Username,
+        HashedPassword: result.HashedPassword,
+        CreatedAt:      result.UserCreatedAt,
+        UpdatedAt:      result.UserUpdatedAt,
+    }
+    
+    return token, user, nil
 }
 
 func (d *Database) GetAuthTokensByRefreshToken(ctx context.Context, refreshToken string) (*AuthToken, *User, error) {
-	// Same implementation pattern as GetAuthTokensByAccessToken
-	// Code omitted for brevity - follow the same pattern as above
-	// with different query parameter
-	
-	// For simplicity, I'll return nil values
-	return nil, nil, nil
+    query := `
+        SELECT 
+            t.id, t.user_id, t.access_token, t.refresh_token, t.csrf_token, t.expires_at, t.created_at,
+            u.id as user_id, u.username, u.hashed_password, u.created_at as user_created_at, u.updated_at as user_updated_at
+        FROM auth_tokens t
+        JOIN users u ON t.user_id = u.id
+        WHERE t.refresh_token = $1
+    `
+    
+    type JoinResult struct {
+        ID           int       `db:"id"`
+        UserID       int       `db:"user_id"`
+        AccessToken  string    `db:"access_token"`
+        RefreshToken string    `db:"refresh_token"`
+        CSRFToken    string    `db:"csrf_token"`
+        ExpiresAt    time.Time `db:"expires_at"`
+        CreatedAt    time.Time `db:"created_at"`
+        
+        Username       string    `db:"username"`
+        HashedPassword string    `db:"hashed_password"`
+        UserCreatedAt  time.Time `db:"user_created_at"`
+        UserUpdatedAt  time.Time `db:"user_updated_at"`
+    }
+    
+    var result JoinResult
+    err := d.DB.GetContext(ctx, &result, query, refreshToken)
+    if err != nil {
+        if errors.Is(err, sql.ErrNoRows) {
+            return nil, nil, nil // Not found
+        }
+        return nil, nil, fmt.Errorf("failed to query auth tokens: %w", err)
+    }
+    
+    token := &AuthToken{
+        ID:           result.ID,
+        UserID:       result.UserID,
+        AccessToken:  result.AccessToken,
+        RefreshToken: result.RefreshToken,
+        CSRFToken:    result.CSRFToken,
+        ExpiresAt:    result.ExpiresAt,
+        CreatedAt:    result.CreatedAt,
+    }
+    
+    user := &User{
+        ID:             result.UserID,
+        Username:       result.Username,
+        HashedPassword: result.HashedPassword,
+        CreatedAt:      result.UserCreatedAt,
+        UpdatedAt:      result.UserUpdatedAt,
+    }
+    
+    return token, user, nil
 }
 
 func (d *Database) DeleteAuthTokens(ctx context.Context, userID int) error {
