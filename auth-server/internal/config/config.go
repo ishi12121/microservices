@@ -3,6 +3,7 @@ package config
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"strconv"
 	"time"
@@ -76,6 +77,7 @@ func Load() (*Config, error) {
 
 // GetDatabaseURL returns the database connection string
 func (c *DatabaseConfig) GetDatabaseURL() string {
+    log.Printf("Connecting to database")
     return c.URL
 }
 
