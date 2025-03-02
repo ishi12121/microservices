@@ -2,4 +2,4 @@
 *tmp
 *.mod
 *.sum
-*.env
+.env
