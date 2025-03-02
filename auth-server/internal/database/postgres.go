@@ -2,6 +2,7 @@
 package database
 
 import (
+	"auth-server/internal/util"
 	"context"
 	"database/sql"
 	"errors"
@@ -17,6 +18,7 @@ type Database struct {
 }
 
 func NewDatabase(connectionString string) (*Database, error) {
+    defer util.Trace()() 
 	db, err := sqlx.Connect("postgres", connectionString)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
@@ -41,6 +43,7 @@ func (d *Database) Close() error {
 
 // User methods
 func (d *Database) CreateUser(ctx context.Context, username, hashedPassword string) (int, error) {
+    defer util.Trace()() 
 	query := `
 		INSERT INTO users (username, hashed_password)
 		VALUES ($1, $2)
@@ -55,6 +58,7 @@ func (d *Database) CreateUser(ctx context.Context, username, hashedPassword stri
 }
 
 func (d *Database) GetUserByUsername(ctx context.Context, username string) (*User, error) {
+    defer util.Trace()() 
 	query := `
 		SELECT id, username, hashed_password, created_at, updated_at
 		FROM users
@@ -73,6 +77,7 @@ func (d *Database) GetUserByUsername(ctx context.Context, username string) (*Use
 
 // Auth token methods
 func (d *Database) SaveAuthTokens(ctx context.Context, userID int, tokens AuthToken) error {
+    defer util.Trace()() 
 	// First delete any existing tokens for this user
 	_, err := d.DB.ExecContext(ctx, "DELETE FROM auth_tokens WHERE user_id = $1", userID)
 	if err != nil {
@@ -91,6 +96,7 @@ func (d *Database) SaveAuthTokens(ctx context.Context, userID int, tokens AuthTo
 }
 
 func (d *Database) GetAuthTokensByAccessToken(ctx context.Context, accessToken string) (*AuthToken, *User, error) {
+    defer util.Trace()() 
     query := `
         SELECT 
             t.id, t.user_id, t.access_token, t.refresh_token, t.csrf_token, t.expires_at, t.created_at,
@@ -146,6 +152,7 @@ func (d *Database) GetAuthTokensByAccessToken(ctx context.Context, accessToken s
 }
 
 func (d *Database) GetAuthTokensByRefreshToken(ctx context.Context, refreshToken string) (*AuthToken, *User, error) {
+    defer util.Trace()() 
     query := `
         SELECT 
             t.id, t.user_id, t.access_token, t.refresh_token, t.csrf_token, t.expires_at, t.created_at,
@@ -201,6 +208,7 @@ func (d *Database) GetAuthTokensByRefreshToken(ctx context.Context, refreshToken
 }
 
 func (d *Database) DeleteAuthTokens(ctx context.Context, userID int) error {
+    defer util.Trace()() 
 	_, err := d.DB.ExecContext(ctx, "DELETE FROM auth_tokens WHERE user_id = $1", userID)
 	if err != nil {
 		return fmt.Errorf("failed to delete auth tokens: %w", err)
