@@ -13,7 +13,6 @@ func main() {
 	// Set up logging
 	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
 	log.Println("Starting auth server...")
-
 	// Load configuration
 	cfg, err := config.Load()
 	if err != nil {
