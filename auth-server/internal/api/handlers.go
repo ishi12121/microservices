@@ -99,6 +99,7 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+
 func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		sendJSONError(w, "Invalid method", http.StatusMethodNotAllowed)

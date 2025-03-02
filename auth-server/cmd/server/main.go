@@ -7,6 +7,8 @@ import (
 	"auth-server/internal/database"
 	"log"
 	"os"
+
+	"github.com/jmoiron/sqlx"
 )
 
 func main() {
@@ -20,11 +22,17 @@ func main() {
 	}
 
 	// Initialize database connection
-	db, err := database.NewDatabase(cfg.Database.GetDatabaseURL())
+	sqlDB, err := cfg.Database.GetDatabaseWithLogging()
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
-	defer db.Close()
+	defer sqlDB.Close()
+
+	// Convert sql.DB to sqlx.DB
+	sqlxDB := sqlx.NewDb(sqlDB, "postgres")
+
+	// Create database wrapper
+	db := &database.Database{DB: sqlxDB}
 
 	// Create and configure server
 	server := api.NewServer(db, cfg.Server.GetServerAddr(), cfg.Auth)

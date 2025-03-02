@@ -9,8 +9,10 @@ import (
 	"time"
 
 	"auth-server/internal/auth"
+	"database/sql"
 
 	"github.com/joho/godotenv"
+	_ "github.com/lib/pq"
 )
 
 // Config holds all configuration for the application
@@ -75,12 +77,77 @@ func Load() (*Config, error) {
     }, nil
 }
 
+
 // GetDatabaseURL returns the database connection string
-func (c *DatabaseConfig) GetDatabaseURL() string {
-    log.Printf("Connecting to database")
+func (c *DatabaseConfig) GetDatabaseURL()  string {
+    log.Printf("Attempting to connect to database")
+    
+    db, err := sql.Open("postgres", c.URL)
+    if err != nil {
+        log.Printf("Error opening database connection: %v", err)
+        return c.URL
+    }
+    defer db.Close()
+
+    var result int
+    err = db.QueryRow("SELECT 1+1").Scan(&result)
+    if err != nil {
+        log.Printf("Database connection test failed: %v", err)
+        return c.URL
+    }
+
+    if result == 2 {
+        log.Printf("Database connection test successful")
+    } else {
+        log.Printf("Database connection test returned unexpected result: %d", result)
+    }
+
     return c.URL
 }
 
+// GetDatabaseWithLogging returns a database connection with query logging enabled
+func (c *DatabaseConfig) GetDatabaseWithLogging() (*sql.DB, error) {
+    log.Printf("Attempting to connect to database with query logging")
+    
+    // Open database connection
+    db, err := sql.Open("postgres", c.URL)
+    if err != nil {
+        log.Printf("Error opening database connection: %v", err)
+        return nil, err
+    }
+    
+    // Test connection
+    var result int
+    err = db.QueryRow("SELECT 1+1").Scan(&result)
+    if err != nil {
+        log.Printf("Database connection test failed: %v", err)
+        db.Close()
+        return nil, err
+    }
+    
+    if result == 2 {
+        log.Printf("Database connection test successful")
+    } else {
+        log.Printf("Database connection test returned unexpected result: %d", result)
+    }
+    
+    // Enable query logging by setting a driver-specific logger
+    // For PostgreSQL, we can use a custom driver
+    driver := &LoggingDriver{parent: db.Driver()}
+    sql.Register("postgres-logging", driver)
+    
+    // Open a new connection with the logging driver
+    dbWithLogging, err := sql.Open("postgres-logging", c.URL)
+    if err != nil {
+        log.Printf("Error opening logging database connection: %v", err)
+        db.Close()
+        return nil, err
+    }
+    
+    db.Close() // Close the original connection
+    
+    return dbWithLogging, nil
+}
 // GetServerAddr returns the formatted server address
 func (c *ServerConfig) GetServerAddr() string {
 	return fmt.Sprintf("%s:%d", c.Host, c.Port)
